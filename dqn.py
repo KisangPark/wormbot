@@ -112,7 +112,14 @@ class Qnet(nn.Module):
 
         return np.array(ranges[eighth:-eighth: 2])
 
-def train(q, q_target, memory, optimizer):#, scheduler): # ****************************** training sequence -> get optimizer, scheduler, memory, qnet
+#train -> 수정 필요
+'''
+state: robot의 현재 각도 정보
+action: +1 or -1로 결정
+reward: sensor의 값 가지고 python code에서 계산 및 결정
+done: timeout? 말고 어떤 done 유형이 있을까 -> 따로 없어보임
+'''
+def train(q, q_target, memory, optimizer):
 
     for i in range(10):
         s, a, r, s_prime, done_mask = memory.sample(batch_size)
@@ -122,6 +129,9 @@ def train(q, q_target, memory, optimizer):#, scheduler): # *********************
         max_q_prime = q_target(s_prime).max(1)[0].unsqueeze(1)
         target = r + gamma * max_q_prime * done_mask # action value update
         loss = F.smooth_l1_loss(q_a, target)
+        '''
+        loss function 정의할 필요가 있음!!
+        '''
 
         optimizer.zero_grad()
         loss.backward() # backprop
@@ -131,11 +141,11 @@ def train(q, q_target, memory, optimizer):#, scheduler): # *********************
 def plot_durations(laptimes):
     plt.figure(2)
     plt.clf()
-    durations_t = torch.tensor(laptimes, dtype=torch.float)
+    durations_t = torch.tensor(laptimes, dtype=torch.float) #duration 대신 다른 것을 y 값으로 -> height !! ****************************
     plt.title('Training...')
     plt.xlabel('Episode')
-    plt.ylabel('Duration')
-    plt.plot(durations_t.numpy())
+    plt.ylabel('Maximum Height')
+    plt.plot(durations_t.numpy()) #변수 수정
     if len(durations_t) >= 10:
         means = durations_t.unfold(0, 10, 1).mean(1).view(-1)
         means = torch.cat((torch.zeros(9), means))
@@ -153,14 +163,15 @@ def get_today():
 
 # main, training
 
+'''
+main은 따로 빼서, main file을 따로 만들고
+통신 코드랑 dqn을 각각 가져와서 조합해서 사용하면 될 듯
+'''
 def main():
     today = get_today()
     work_dir = "./" + today
     os.makedirs(work_dir + '_' + RACETRACK)
 
-    env = gym.make('f110_gym:f110-v0',
-                   map="{}/maps/{}".format(current_dir, RACETRACK),
-                   map_ext=".png", num_agents=1)
     q = Qnet()
     # q.load_state_dict(torch.load("{}\weigths\model_state_dict_easy1_fin.pt".format(current_dir)))
     q_target = Qnet()
